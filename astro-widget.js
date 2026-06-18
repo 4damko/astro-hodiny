@@ -125,8 +125,13 @@ async function build() {
     const sub = col.addText(`${tt.el} · ${tt.q}`); sub.font = Font.systemFont(11); sub.textColor = soft;
 
     w.addSpacer(5);
-    const rem = w.addText(`zmena o ${fmt(tt.end)} (${minsLeft(tt.end, now)})`);
+    const rem = w.addText(`zmena o ${fmt(tt.end)} · zostáva ${minsLeft(tt.end, now)}`);
     rem.font = Font.systemFont(10); rem.textColor = soft;
+
+    const ci = TATTVAS.findIndex(x => x.name === tt.name);
+    const nx = TATTVAS[(ci + 1) % 5];
+    const nextLine = w.addText(`ďalej ${nx.mood} ${nx.name} · ${nx.q}`);
+    nextLine.font = Font.systemFont(10); nextLine.textColor = soft;
   } else {
     const nm = w.addText("—"); nm.font = Font.boldSystemFont(22); nm.textColor = ink;
   }
