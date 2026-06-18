@@ -147,41 +147,63 @@
   .meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--ink-soft); font-size: 13px; margin-top: 6px; }
   .meta b { color: var(--ink); font-weight: 600; }
 
-  .now-cards { display: flex; gap: 14px; flex-wrap: wrap; }
+  /* ---------- "Aktuálne" karty (na celú šírku) ---------- */
+  .now-cards { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
   .now-card {
-    background: var(--surface);
+    background: var(--accent-bg);
     border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 14px 18px;
-    min-width: 150px;
+    border-radius: 20px;
+    padding: 16px 22px 18px;
     box-shadow: var(--shadow);
   }
-  .now-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); }
-  .now-card .value { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 22px; font-weight: 600; }
-  .now-card .value small { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+  .now-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-faint); }
+  .now-main { display: flex; align-items: center; gap: 18px; margin-top: 10px; }
+  .now-emoji { font-size: 52px; line-height: 1; }
+  .now-glyph {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; color: var(--glyph-ink); background: var(--glyph-bg);
+    flex: none;
+  }
+  .now-text { display: flex; flex-direction: column; gap: 3px; }
+  .now-name { font-family: 'Fraunces', serif; font-weight: 500; font-size: 34px; line-height: 1; letter-spacing: -.01em; }
+  .now-sub  { font-size: 15px; color: var(--ink-soft); font-weight: 500; }
 
-  /* ---------- Main grid ---------- */
-  main { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  /* ---------- Harmonikové panely ---------- */
+  main { display: flex; flex-direction: column; gap: 16px; }
 
   .panel {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 22px;
-    padding: 8px;
     box-shadow: var(--shadow);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    overflow: hidden;
   }
   .panel-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    padding: 16px 18px 14px;
+    width: 100%;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px;
+    background: none; border: none;
+    font: inherit; color: inherit; text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .panel-head h2 { font-family:'Fraunces',serif; font-weight: 500; font-size: 20px; letter-spacing: -.01em; }
-  .panel-head span { font-size: 12px; color: var(--ink-faint); }
+  .ph-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .ph-name { font-family:'Fraunces',serif; font-weight: 500; font-size: 21px; letter-spacing: -.01em; }
+  .ph-sub  { font-size: 12px; color: var(--ink-faint); }
+  .chev {
+    font-size: 20px; color: var(--ink-faint); line-height: 1;
+    transition: transform .25s ease; flex: none;
+  }
+  .panel.open .chev { transform: rotate(180deg); }
 
-  .list { overflow-y: auto; max-height: 62vh; padding: 0 6px 6px; scroll-behavior: smooth; }
+  .list {
+    display: none;
+    overflow-y: auto; max-height: 58vh;
+    padding: 0 12px 12px; scroll-behavior: smooth;
+  }
+  .panel.open .list { display: block; }
 
   .row {
     display: grid;
@@ -259,13 +281,15 @@
     header { gap: 16px; padding-bottom: 18px; margin-bottom: 20px; }
     .clock { font-size: 56px; }
     .meta { gap: 12px; font-size: 12px; }
-    .now-cards { width: 100%; gap: 10px; }
-    .now-card { flex: 1; min-width: 0; padding: 12px 14px; }
-    .now-card .value { font-size: 18px; gap: 8px; }
-    .now-card .value small { display: block; font-size: 11px; }
-    main { gap: 14px; }
+    .now-cards { gap: 12px; margin-bottom: 18px; }
+    .now-card { padding: 14px 18px 16px; border-radius: 18px; }
+    .now-emoji { font-size: 46px; }
+    .now-glyph { width: 48px; height: 48px; font-size: 26px; }
+    .now-name { font-size: 29px; }
+    .now-sub { font-size: 14px; }
+    main { gap: 12px; }
     .panel { border-radius: 18px; }
-    .list { max-height: none; }      /* na mobile necháme scrollovať celú stránku */
+    .list { max-height: 62vh; }
     .row { padding: 12px 12px; }
     .row .name { font-size: 16px; }
     #theme-toggle { width: 38px; height: 38px; font-size: 16px; }
@@ -291,25 +315,50 @@
         <span id="suntimes">—</span>
       </div>
     </div>
-    <div class="now-cards">
-      <div class="now-card">
-        <div class="label">Aktuálna tattva</div>
-        <div class="value" id="now-tattva">—</div>
-      </div>
-      <div class="now-card">
-        <div class="label">Planetárna hodina</div>
-        <div class="value" id="now-planet">—</div>
-      </div>
-    </div>
   </header>
 
+  <div class="now-cards">
+    <div class="now-card" id="card-tattva">
+      <div class="label">Aktuálna tattva</div>
+      <div class="now-main">
+        <span class="now-emoji" id="t-emoji">—</span>
+        <div class="now-text">
+          <div class="now-name" id="t-name">—</div>
+          <div class="now-sub" id="t-sub">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="now-card" id="card-planet">
+      <div class="label">Planetárna hodina</div>
+      <div class="now-main">
+        <span class="now-glyph" id="p-glyph">—</span>
+        <div class="now-text">
+          <div class="now-name" id="p-name">—</div>
+          <div class="now-sub" id="p-sub">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <main>
-    <section class="panel">
-      <div class="panel-head"><h2>Tattvy</h2><span>5 živlov · ~24 min</span></div>
+    <section class="panel" id="panel-tattvas">
+      <button class="panel-head" type="button" aria-expanded="false">
+        <span class="ph-title">
+          <span class="ph-name">Tattvy</span>
+          <span class="ph-sub">5 živlov · ~24 min</span>
+        </span>
+        <span class="chev">⌄</span>
+      </button>
       <div class="list" id="tattvas"></div>
     </section>
-    <section class="panel">
-      <div class="panel-head"><h2>Planetárne hodiny</h2><span>deň + noc</span></div>
+    <section class="panel" id="panel-planets">
+      <button class="panel-head" type="button" aria-expanded="false">
+        <span class="ph-title">
+          <span class="ph-name">Planetárne hodiny</span>
+          <span class="ph-sub">deň + noc</span>
+        </span>
+        <span class="chev">⌄</span>
+      </button>
       <div class="list" id="planets"></div>
     </section>
   </main>
@@ -352,7 +401,8 @@
   const $ = id => document.getElementById(id);
   const loading = $('loading'), app = $('app');
   const clockEl = $('clock'), dateEl = $('date'), locEl = $('location'), sunEl = $('suntimes');
-  const nowTattvaEl = $('now-tattva'), nowPlanetEl = $('now-planet');
+  const tEmoji = $('t-emoji'), tName = $('t-name'), tSub = $('t-sub');
+  const pGlyph = $('p-glyph'), pName = $('p-name'), pSub = $('p-sub');
   const tattvasEl = $('tattvas'), planetsEl = $('planets');
 
   // ---------- Helpers ----------
@@ -423,13 +473,17 @@
     const ti = tattvaSchedule.findIndex(t => now >= t.start && now < t.end);
     if (ti !== -1) {
       const t = tattvaSchedule[ti];
-      nowTattvaEl.innerHTML = `<span class="mood-lg">${t.mood}</span>${t.name} <small>${t.element} · ${t.quality}</small>`;
+      tEmoji.textContent = t.mood;
+      tName.textContent = t.name;
+      tSub.textContent = `${t.element} · ${t.quality}`;
       setActive(tattvasEl, `t-${ti}`);
     }
     const pi = planetSchedule.findIndex(p => now >= p.start && now < p.end);
     if (pi !== -1) {
       const p = planetSchedule[pi];
-      nowPlanetEl.innerHTML = `<span class="glyph" style="width:24px;height:24px;font-size:14px">${PLANET_GLYPH[p.planet]}</span>${PLANETS_SK[p.planet]} <small>${p.type.toLowerCase()}</small>`;
+      pGlyph.textContent = PLANET_GLYPH[p.planet];
+      pName.textContent = PLANETS_SK[p.planet];
+      pSub.textContent = `${p.number}. ${p.type.toLowerCase()}ná hodina · ${fmtTime(p.start)}–${fmtTime(p.end)}`;
       setActive(planetsEl, `p-${pi}`);
     }
   }
@@ -462,11 +516,10 @@
     timer = setInterval(tick, 1000);
 
     setTimeout(() => {
-      const at = tattvasEl.querySelector('.active'); if (at) at.scrollIntoView({ block: 'center' });
-      const ap = planetsEl.querySelector('.active'); if (ap) ap.scrollIntoView({ block: 'center' });
       loading.style.opacity = '0';
       setTimeout(() => loading.style.display = 'none', 500);
       app.classList.add('ready');
+      window.scrollTo(0, 0);
     }, 400);
   }
 
@@ -497,6 +550,15 @@
     root.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
     toggleBtn.textContent = next === 'dark' ? '☀️' : '🌙';
+  });
+
+  // ---------- Harmonika (rozbaľovacie panely) ----------
+  document.querySelectorAll('.panel .panel-head').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = btn.closest('.panel');
+      const open = panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
   });
 
   window.addEventListener('load', init);
