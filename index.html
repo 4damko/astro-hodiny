@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Astro Hodiny — Tattvy & Planetárne hodiny</title>
+
+<!-- iOS: spustenie ako appka na celú obrazovku -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Astro Hodiny">
+<meta name="theme-color" content="#f7f5f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16151a" media="(prefers-color-scheme: dark)" id="theme-color-meta">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- ikona na plochu -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #f7f5f1;   /* warm off-white */
+    --surface:   #ffffff;
+    --line:      #ebe7e0;
+    --line-soft: #f1ede6;
+    --ink:       #21201d;   /* near-black */
+    --ink-soft:  #6b6660;   /* muted text */
+    --ink-faint: #a59f96;
+    --accent:    #b08968;   /* warm taupe accent */
+    --accent-bg: #f3ece4;
+    --accent-ink:#5f4a37;
+    --glyph-bg:    #ead9c6;
+    --glyph-ink:   #6b4f37;
+
+    /* tattva element colours (muted, minimalist) */
+    --t-akasha:   #8b8b96;  /* éter  */
+    --t-vayu:     #7fafc9;  /* vzduch */
+    --t-tejas:    #d98b73;  /* oheň  */
+    --t-prithivi: #cdb37a;  /* zem   */
+    --t-apas:     #8fb8a8;  /* voda  */
+
+    --shadow: 0 1px 3px rgba(40,35,30,.04);
+  }
+
+  /* ---------- Dark theme palette ---------- */
+  :root[data-theme="dark"] {
+    --bg:        #16151a;
+    --surface:   #201f27;
+    --line:      #2d2c35;
+    --line-soft: #26252d;
+    --ink:       #ece9e3;
+    --ink-soft:  #a39e96;
+    --ink-faint: #6e6a64;
+    --accent:    #cba485;
+    --accent-bg: #2c2620;
+    --accent-ink:#e9cba9;
+    --glyph-bg:    #3a2f24;
+    --glyph-ink:   #e0c3a3;
+    --shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  /* follow system unless user picked a theme */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #16151a;
+      --surface:   #201f27;
+      --line:      #2d2c35;
+      --line-soft: #26252d;
+      --ink:       #ece9e3;
+      --ink-soft:  #a39e96;
+      --ink-faint: #6e6a64;
+      --accent:    #cba485;
+      --accent-bg: #2c2620;
+      --accent-ink:#e9cba9;
+      --glyph-bg:    #3a2f24;
+      --glyph-ink:   #e0c3a3;
+      --shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  /* ---------- Loading ---------- */
+  #loading {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--bg);
+    transition: opacity .5s ease;
+  }
+  .spinner {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { margin-top: 18px; color: var(--ink-soft); font-size: 14px; letter-spacing: .01em; }
+
+  /* ---------- Layout ---------- */
+  #app {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: calc(28px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+    opacity: 0;
+    transition: opacity .6s ease;
+  }
+  #app.ready { opacity: 1; }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 26px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--line);
+  }
+  .clock-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .clock {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(44px, 9vw, 76px);
+    line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock .sec { color: var(--ink-faint); }
+  .meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--ink-soft); font-size: 13px; margin-top: 6px; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  .now-cards { display: flex; gap: 14px; flex-wrap: wrap; }
+  .now-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 18px;
+    min-width: 150px;
+    box-shadow: var(--shadow);
+  }
+  .now-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); }
+  .now-card .value { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 22px; font-weight: 600; }
+  .now-card .value small { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+
+  /* ---------- Main grid ---------- */
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 8px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 16px 18px 14px;
+  }
+  .panel-head h2 { font-family:'Fraunces',serif; font-weight: 500; font-size: 20px; letter-spacing: -.01em; }
+  .panel-head span { font-size: 12px; color: var(--ink-faint); }
+
+  .list { overflow-y: auto; max-height: 62vh; padding: 0 6px 6px; scroll-behavior: smooth; }
+
+  .row {
+    display: grid;
+    align-items: center;
+    gap: 14px;
+    padding: 11px 12px;
+    border-radius: 14px;
+    transition: background .35s ease, box-shadow .35s ease;
+  }
+  .row + .row { margin-top: 2px; }
+  .row .time { font-variant-numeric: tabular-nums; }
+
+  /* tattva row: dot | name | time */
+  .tattva-row { grid-template-columns: 26px 1fr auto; }
+  .planet-row { grid-template-columns: 30px 1fr auto; }
+
+  .row .name { font-weight: 600; font-size: 15px; }
+  .row .name .mood { font-size: 15px; margin-left: 2px; }
+  .mood-lg { font-size: 26px; line-height: 1; }
+  .row .sub  { font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+  .row .time { font-size: 13px; color: var(--ink-soft); text-align: right; white-space: nowrap; }
+  .row .idx  { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; text-align: center; }
+
+  /* element dot */
+  .dot { width: 22px; height: 22px; border-radius: 50%; }
+  .dot.tejas { border-radius: 50%; } /* keep circular for minimalist consistency */
+
+  /* current highlight */
+  .row.active {
+    background: var(--accent-bg);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .row.active .name { color: var(--accent-ink); }
+
+  /* planet glyph */
+  .glyph {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--ink-soft);
+    background: var(--line-soft);
+  }
+  .row.active .glyph { background: var(--glyph-bg); color: var(--glyph-ink); }
+
+  /* scrollbar */
+  .list::-webkit-scrollbar { width: 8px; }
+  .list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+  .list::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+  footer { text-align: center; margin-top: 42px; }
+  footer a { color: var(--ink-faint); font-size: 13px; text-decoration: none; }
+  footer a:hover { color: var(--ink-soft); }
+
+  /* ---------- Theme toggle ---------- */
+  #theme-toggle {
+    position: fixed;
+    top: calc(14px + env(safe-area-inset-top));
+    right: calc(14px + env(safe-area-inset-right));
+    z-index: 40;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-size: 18px; line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s ease, background .3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #theme-toggle:active { transform: scale(.9); }
+
+  /* ---------- Mobile (telefón) ---------- */
+  @media (max-width: 560px) {
+    #app { padding-top: calc(20px + env(safe-area-inset-top)); }
+    header { gap: 16px; padding-bottom: 18px; margin-bottom: 20px; }
+    .clock { font-size: 56px; }
+    .meta { gap: 12px; font-size: 12px; }
+    .now-cards { width: 100%; gap: 10px; }
+    .now-card { flex: 1; min-width: 0; padding: 12px 14px; }
+    .now-card .value { font-size: 18px; gap: 8px; }
+    .now-card .value small { display: block; font-size: 11px; }
+    main { gap: 14px; }
+    .panel { border-radius: 18px; }
+    .list { max-height: none; }      /* na mobile necháme scrollovať celú stránku */
+    .row { padding: 12px 12px; }
+    .row .name { font-size: 16px; }
+    #theme-toggle { width: 38px; height: 38px; font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Zisťujem polohu a počítam dáta…</p>
+</div>
+
+<button id="theme-toggle" aria-label="Prepnúť tému">🌙</button>
+
+<div id="app">
+  <header>
+    <div class="clock-wrap">
+      <div class="clock" id="clock">--:--<span class="sec">:--</span></div>
+      <div class="meta">
+        <span id="date">—</span>
+        <span id="location">—</span>
+        <span id="suntimes">—</span>
+      </div>
+    </div>
+    <div class="now-cards">
+      <div class="now-card">
+        <div class="label">Aktuálna tattva</div>
+        <div class="value" id="now-tattva">—</div>
+      </div>
+      <div class="now-card">
+        <div class="label">Planetárna hodina</div>
+        <div class="value" id="now-planet">—</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-head"><h2>Tattvy</h2><span>5 živlov · ~24 min</span></div>
+      <div class="list" id="tattvas"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Planetárne hodiny</h2><span>deň + noc</span></div>
+      <div class="list" id="planets"></div>
+    </section>
+  </main>
+
+  <footer>
+    <a href="https://www.youtube.com/@rades.peron_invention" target="_blank" rel="noopener">Rades.Peron_invention · YouTube</a>
+  </footer>
+</div>
+
+<script type="module">
+  // ---------- Data ----------
+  const TATTVAS = [
+    { name: 'Akasha',   element: 'Éter',   color: 'var(--t-akasha)',   mood: '😔', quality: 'negatívna' },
+    { name: 'Vayu',     element: 'Vzduch', color: 'var(--t-vayu)',     mood: '😐', quality: 'neutrálna'  },
+    { name: 'Tejas',    element: 'Oheň',   color: 'var(--t-tejas)',    mood: '😟', quality: 'negatívna' },
+    { name: 'Prithivi', element: 'Zem',    color: 'var(--t-prithivi)', mood: '🙂', quality: 'pozitívna' },
+    { name: 'Apas',     element: 'Voda',   color: 'var(--t-apas)',     mood: '😁', quality: 'pozitívna' },
+  ];
+
+  const PLANETS_SK = {
+    Saturn: 'Saturn', Jupiter: 'Jupiter', Mars: 'Mars',
+    Sun: 'Slnko', Venus: 'Venuša', Mercury: 'Merkúr', Moon: 'Mesiac'
+  };
+  const PLANET_GLYPH = {
+    Saturn: '♄', Jupiter: '♃', Mars: '♂', Sun: '☉', Venus: '♀', Mercury: '☿', Moon: '☾'
+  };
+  const CHALDEAN_ORDER = ['Saturn', 'Jupiter', 'Mars', 'Sun', 'Venus', 'Mercury', 'Moon'];
+  // Nedeľa = 0
+  const DAY_RULERS = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn'];
+
+  const MONTHS_SK = ['januára','februára','marca','apríla','mája','júna','júla','augusta','septembra','októbra','novembra','decembra'];
+  const DAYS_SK   = ['nedeľa','pondelok','utorok','streda','štvrtok','piatok','sobota'];
+
+  // ---------- State ----------
+  let tattvaSchedule = [];
+  let planetSchedule = [];
+  let timer;
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const loading = $('loading'), app = $('app');
+  const clockEl = $('clock'), dateEl = $('date'), locEl = $('location'), sunEl = $('suntimes');
+  const nowTattvaEl = $('now-tattva'), nowPlanetEl = $('now-planet');
+  const tattvasEl = $('tattvas'), planetsEl = $('planets');
+
+  // ---------- Helpers ----------
+  const pad = n => n.toString().padStart(2, '0');
+  const fmtTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const fmtDate = d => `${DAYS_SK[d.getDay()]}, ${d.getDate()}. ${MONTHS_SK[d.getMonth()]} ${d.getFullYear()}`;
+
+  // ---------- Calculations ----------
+  function calcTattvas(sunriseToday, sunriseTomorrow) {
+    tattvaSchedule = [];
+    const dur = (sunriseTomorrow - sunriseToday) / 60; // 60 úsekov za deň
+    let t = sunriseToday.getTime();
+    for (let i = 0; i < 60; i++) {
+      const tt = TATTVAS[i % 5];
+      tattvaSchedule.push({ ...tt, start: new Date(t), end: new Date(t + dur) });
+      t += dur;
+    }
+  }
+
+  function calcPlanets(sunriseToday, sunsetToday, sunriseTomorrow) {
+    planetSchedule = [];
+    let idx = CHALDEAN_ORDER.indexOf(DAY_RULERS[sunriseToday.getDay()]);
+
+    const dayLen = (sunsetToday - sunriseToday) / 12;
+    let t = sunriseToday.getTime();
+    for (let i = 0; i < 12; i++) {
+      planetSchedule.push({ type: 'Deň', number: i + 1, planet: CHALDEAN_ORDER[idx % 7], start: new Date(t), end: new Date(t + dayLen) });
+      t += dayLen; idx++;
+    }
+    const nightLen = (sunriseTomorrow - sunsetToday) / 12;
+    t = sunsetToday.getTime();
+    for (let i = 0; i < 12; i++) {
+      planetSchedule.push({ type: 'Noc', number: i + 1, planet: CHALDEAN_ORDER[idx % 7], start: new Date(t), end: new Date(t + nightLen) });
+      t += nightLen; idx++;
+    }
+  }
+
+  // ---------- Render ----------
+  function renderTattvas() {
+    tattvasEl.innerHTML = tattvaSchedule.map((t, i) => `
+      <div class="row tattva-row" id="t-${i}">
+        <div class="dot" style="background:${t.color}"></div>
+        <div>
+          <div class="name">${t.name} <span class="mood">${t.mood}</span></div>
+          <div class="sub">${t.element} · ${t.quality}</div>
+        </div>
+        <div class="time">${fmtTime(t.start)} – ${fmtTime(t.end)}</div>
+      </div>`).join('');
+  }
+
+  function renderPlanets() {
+    planetsEl.innerHTML = planetSchedule.map((p, i) => `
+      <div class="row planet-row" id="p-${i}">
+        <div class="glyph">${PLANET_GLYPH[p.planet]}</div>
+        <div>
+          <div class="name">${PLANETS_SK[p.planet]}</div>
+          <div class="sub">${p.number}. ${p.type.toLowerCase()}ná hodina</div>
+        </div>
+        <div class="time">${fmtTime(p.start)} – ${fmtTime(p.end)}</div>
+      </div>`).join('');
+  }
+
+  // ---------- Tick ----------
+  function tick() {
+    const now = new Date();
+    clockEl.innerHTML = `${pad(now.getHours())}:${pad(now.getMinutes())}<span class="sec">:${pad(now.getSeconds())}</span>`;
+
+    const ti = tattvaSchedule.findIndex(t => now >= t.start && now < t.end);
+    if (ti !== -1) {
+      const t = tattvaSchedule[ti];
+      nowTattvaEl.innerHTML = `<span class="mood-lg">${t.mood}</span>${t.name} <small>${t.element} · ${t.quality}</small>`;
+      setActive(tattvasEl, `t-${ti}`);
+    }
+    const pi = planetSchedule.findIndex(p => now >= p.start && now < p.end);
+    if (pi !== -1) {
+      const p = planetSchedule[pi];
+      nowPlanetEl.innerHTML = `<span class="glyph" style="width:24px;height:24px;font-size:14px">${PLANET_GLYPH[p.planet]}</span>${PLANETS_SK[p.planet]} <small>${p.type.toLowerCase()}</small>`;
+      setActive(planetsEl, `p-${pi}`);
+    }
+  }
+
+  function setActive(container, id) {
+    const prev = container.querySelector('.row.active');
+    if (prev && prev.id !== id) prev.classList.remove('active');
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+
+  // ---------- Init ----------
+  function run(lat, lon, label) {
+    locEl.innerHTML = label;
+    const now = new Date();
+    const tomorrow = new Date(); tomorrow.setDate(now.getDate() + 1);
+
+    const today = SunCalc.getTimes(now, lat, lon);
+    const tmrw  = SunCalc.getTimes(tomorrow, lat, lon);
+
+    dateEl.innerHTML = `<b>${fmtDate(now)}</b>`;
+    sunEl.innerHTML = `☀ ${fmtTime(today.sunrise)} &nbsp; ☾ ${fmtTime(today.sunset)}`;
+
+    calcTattvas(today.sunrise, tmrw.sunrise);
+    calcPlanets(today.sunrise, today.sunset, tmrw.sunrise);
+    renderTattvas();
+    renderPlanets();
+    tick();
+    clearInterval(timer);
+    timer = setInterval(tick, 1000);
+
+    setTimeout(() => {
+      const at = tattvasEl.querySelector('.active'); if (at) at.scrollIntoView({ block: 'center' });
+      const ap = planetsEl.querySelector('.active'); if (ap) ap.scrollIntoView({ block: 'center' });
+      loading.style.opacity = '0';
+      setTimeout(() => loading.style.display = 'none', 500);
+      app.classList.add('ready');
+    }, 400);
+  }
+
+  function init() {
+    if (!navigator.geolocation) return run(48.3079, 18.0836, 'Nitra (predvolené)');
+    navigator.geolocation.getCurrentPosition(
+      pos => run(pos.coords.latitude, pos.coords.longitude,
+                 `${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`),
+      ()  => run(48.3079, 18.0836, 'Nitra (predvolené)'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  // ---------- Theme toggle ----------
+  const root = document.documentElement;
+  const toggleBtn = document.getElementById('theme-toggle');
+  const isDark = () => {
+    const t = root.getAttribute('data-theme');
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+  const saved = localStorage.getItem('theme');
+  if (saved) root.setAttribute('data-theme', saved);
+  toggleBtn.textContent = isDark() ? '☀️' : '🌙';
+  toggleBtn.addEventListener('click', () => {
+    const next = isDark() ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    toggleBtn.textContent = next === 'dark' ? '☀️' : '🌙';
+  });
+
+  window.addEventListener('load', init);
+</script>
+</body>
+</html>
