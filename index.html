@@ -168,6 +168,17 @@
   .now-text { display: flex; flex-direction: column; gap: 3px; }
   .now-name { font-family: 'Fraunces', serif; font-weight: 500; font-size: 34px; line-height: 1; letter-spacing: -.01em; }
   .now-sub  { font-size: 15px; color: var(--ink-soft); font-weight: 500; }
+  .now-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .now-foot #t-countdown { font-variant-numeric: tabular-nums; }
+  .now-foot #t-countdown b { color: var(--ink); font-weight: 600; }
+  .now-next { color: var(--ink-soft); }
+  .now-next b { color: var(--ink); font-weight: 600; }
 
   /* ---------- Harmonikové panely ---------- */
   main { display: flex; flex-direction: column; gap: 16px; }
@@ -327,6 +338,10 @@
           <div class="now-sub" id="t-sub">—</div>
         </div>
       </div>
+      <div class="now-foot">
+        <span id="t-countdown">—</span>
+        <span class="now-next" id="t-next">—</span>
+      </div>
     </div>
     <div class="now-card" id="card-planet">
       <div class="label">Planetárna hodina</div>
@@ -402,6 +417,7 @@
   const loading = $('loading'), app = $('app');
   const clockEl = $('clock'), dateEl = $('date'), locEl = $('location'), sunEl = $('suntimes');
   const tEmoji = $('t-emoji'), tName = $('t-name'), tSub = $('t-sub');
+  const tCountdown = $('t-countdown'), tNext = $('t-next');
   const pGlyph = $('p-glyph'), pName = $('p-name'), pSub = $('p-sub');
   const tattvasEl = $('tattvas'), planetsEl = $('planets');
 
@@ -409,6 +425,7 @@
   const pad = n => n.toString().padStart(2, '0');
   const fmtTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const fmtDate = d => `${DAYS_SK[d.getDay()]}, ${d.getDate()}. ${MONTHS_SK[d.getMonth()]} ${d.getFullYear()}`;
+  const fmtDur = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${pad(s % 60)}`; };
 
   // ---------- Calculations ----------
   function calcTattvas(sunriseToday, sunriseTomorrow) {
@@ -476,6 +493,9 @@
       tEmoji.textContent = t.mood;
       tName.textContent = t.name;
       tSub.textContent = `${t.element} · ${t.quality}`;
+      tCountdown.innerHTML = `končí o <b>${fmtTime(t.end)}</b> · zostáva <b>${fmtDur(t.end - now)}</b>`;
+      const next = TATTVAS[(ti + 1) % 5];
+      tNext.innerHTML = `ďalej ${next.mood} <b>${next.name}</b>`;
       setActive(tattvasEl, `t-${ti}`);
     }
     const pi = planetSchedule.findIndex(p => now >= p.start && now < p.end);
